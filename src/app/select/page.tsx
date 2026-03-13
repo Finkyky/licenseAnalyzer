@@ -12,7 +12,7 @@ import { ModelSelector } from "@/components/features/ModelSelector";
 import { InputForm } from "@/components/features/InputForm";
 import { ResultDisplay } from "@/components/features/ResultDisplay";
 import { LicenseComparison } from "@/components/features/LicenseComparison";
-import { submitAnalysis, pollAnalysisResult, compareLicenses, fetchLicenseText, generateReport } from "@/lib/api";
+import { submitAnalysis, pollAnalysisResult, compareLicenses, fetchLicenseText } from "@/lib/api";
 import { LicenseRecommendation, ComparisonResult } from "@/types/license";
 import { toast } from "sonner";
 
@@ -41,7 +41,6 @@ export default function SelectPage() {
   const [comparison, setComparison] = useState<ComparisonResult | null>(null);
   const [licenseText, setLicenseText] = useState<string>("");
   const [report, setReport] = useState<string>("");
-  const [reportLoading, setReportLoading] = useState(false);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
@@ -107,22 +106,13 @@ export default function SelectPage() {
   const handleGenerateLicense = useCallback(async () => {
     if (!selectedLicense) return;
     setStage("generate");
-    setReportLoading(true);
-
-    // Fetch license text from DB and generate report in parallel
-    const [textResult, reportResult] = await Promise.allSettled([
-      fetchLicenseText(selectedLicense),
-      generateReport({
-        selectedLicense,
-        projectDescription: inputData.content,
-        model: modelConfig,
-      }),
-    ]);
-
-    if (textResult.status === "fulfilled") setLicenseText(textResult.value);
-    if (reportResult.status === "fulfilled") setReport(reportResult.value);
-    setReportLoading(false);
-  }, [selectedLicense, inputData.content, modelConfig]);
+    try {
+      const text = await fetchLicenseText(selectedLicense);
+      setLicenseText(text);
+    } catch {
+      // 如果 DB 没有，保留 LLM 生成的文本
+    }
+  }, [selectedLicense]);
 
   const handleDownloadLicense = useCallback(() => {
     const text = licenseText || `请参考 ${selectedLicense} 协议的官方文本。`;
@@ -299,34 +289,25 @@ export default function SelectPage() {
           )}
 
           {/* AI Report */}
-          {(reportLoading || report) && (
+          {report && (
             <Card className="shadow-sm">
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm flex items-center gap-2">
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-violet-500"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
                   AI 分析报告
-                  <Badge variant="outline" className="text-[10px] font-normal ml-auto">{reportLoading ? "生成中..." : "AI 生成"}</Badge>
+                  <Badge variant="outline" className="text-[10px] font-normal ml-auto">AI 生成</Badge>
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {reportLoading ? (
-                  <div className="space-y-3 py-4">
-                    <Skeleton className="h-4 w-3/4" />
-                    <Skeleton className="h-4 w-full" />
-                    <Skeleton className="h-4 w-5/6" />
-                    <Skeleton className="h-4 w-2/3" />
-                  </div>
-                ) : (
-                  <div className="prose prose-sm prose-neutral dark:prose-invert max-w-none
-                    prose-headings:font-semibold prose-headings:tracking-tight
-                    prose-h1:text-lg prose-h2:text-base prose-h3:text-sm
-                    prose-p:text-[13px] prose-p:leading-relaxed
-                    prose-li:text-[13px] prose-li:leading-relaxed
-                    prose-strong:text-foreground
-                    prose-code:text-xs prose-code:bg-muted prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:before:content-none prose-code:after:content-none">
-                    <ReactMarkdown>{report}</ReactMarkdown>
-                  </div>
-                )}
+                <div className="prose prose-sm prose-neutral dark:prose-invert max-w-none
+                  prose-headings:font-semibold prose-headings:tracking-tight
+                  prose-h1:text-lg prose-h2:text-base prose-h3:text-sm
+                  prose-p:text-[13px] prose-p:leading-relaxed
+                  prose-li:text-[13px] prose-li:leading-relaxed
+                  prose-strong:text-foreground
+                  prose-code:text-xs prose-code:bg-muted prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:before:content-none prose-code:after:content-none">
+                  <ReactMarkdown>{report}</ReactMarkdown>
+                </div>
               </CardContent>
             </Card>
           )}

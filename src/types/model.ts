@@ -23,5 +23,5 @@ export interface ModelResponse {
 }
 
 export interface ModelAdapter {
-  call(messages: ModelMessage[], options?: { maxTokens?: number; timeout?: number }): Promise<ModelResponse>;
+  call(messages: ModelMessage[]): Promise<ModelResponse>;
 }

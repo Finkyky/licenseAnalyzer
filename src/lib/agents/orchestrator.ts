@@ -1,5 +1,5 @@
 import { ModelAdapter } from '@/types/model';
-import { AgentInput, RiskAssessmentOutput, RecommendationOutput, GenerationOutput } from '@/types/agent';
+import { AgentInput, LicenseAnalysisOutput, RiskAssessmentOutput, RecommendationOutput, GenerationOutput } from '@/types/agent';
 import { AnalysisResult } from '@/types/api';
 import { licenseAnalysisAgent } from './licenseAnalysisAgent';
 import { riskAssessmentAgent } from './riskAssessmentAgent';
@@ -7,6 +7,7 @@ import { recommendationAgent } from './recommendationAgent';
 import { generationAgent } from './generationAgent';
 
 export interface OrchestratorResult {
+  analysis?: LicenseAnalysisOutput;
   risks?: RiskAssessmentOutput;
   recommendations?: RecommendationOutput;
   generation?: GenerationOutput;
@@ -14,25 +15,40 @@ export interface OrchestratorResult {
 
 /**
  * Execute the "select license" flow:
- * Only run analysis + recommendation in parallel (1 round-trip).
- * Report generation is deferred to when the user actually needs it.
+ * 1. Parallel: analysis + recommendation
+ * 2. Then: generation
  */
 export async function executeSelectFlow(
   input: AgentInput,
   model: ModelAdapter
 ): Promise<AnalysisResult> {
   try {
-    const [, recommendations] = await Promise.allSettled([
+    // Step 1: Run analysis and recommendation in parallel
+    const [analysis, recommendations] = await Promise.allSettled([
       licenseAnalysisAgent.execute(input, model),
       recommendationAgent.execute(input, model),
     ]);
 
+    const analysisResult = analysis.status === 'fulfilled' ? analysis.value : undefined;
     const recommendationsResult = recommendations.status === 'fulfilled' ? recommendations.value : undefined;
+
+    // Step 2: Generate report based on results
+    let generation: GenerationOutput | undefined;
+    try {
+      generation = await generationAgent.executeWithContext(input, model, {
+        analysis: analysisResult,
+        recommendations: recommendationsResult,
+      });
+    } catch {
+      // Generation failure is non-critical
+    }
 
     return {
       type: 'select',
       status: 'completed',
       recommendations: recommendationsResult?.recommendations,
+      licenseText: generation?.licenseText,
+      report: generation?.report,
     };
   } catch (error) {
     return {
@@ -45,27 +61,39 @@ export async function executeSelectFlow(
 
 /**
  * Execute the "analyze dependencies" flow:
- * Run analysis, risk assessment, and generation all in parallel (1 round-trip).
+ * 1. Analysis + Risk assessment in parallel
+ * 2. Then: generation
  */
 export async function executeAnalyzeFlow(
   input: AgentInput,
   model: ModelAdapter
 ): Promise<AnalysisResult> {
   try {
-    const [, risks, generation] = await Promise.allSettled([
+    // Step 1: Run analysis and risk assessment in parallel
+    const [analysis, risks] = await Promise.allSettled([
       licenseAnalysisAgent.execute(input, model),
       riskAssessmentAgent.execute(input, model),
-      generationAgent.execute(input, model),
     ]);
 
+    const analysisResult = analysis.status === 'fulfilled' ? analysis.value : undefined;
     const risksResult = risks.status === 'fulfilled' ? risks.value : undefined;
-    const generationResult = generation.status === 'fulfilled' ? generation.value : undefined;
+
+    // Step 2: Generate report
+    let generation: GenerationOutput | undefined;
+    try {
+      generation = await generationAgent.executeWithContext(input, model, {
+        analysis: analysisResult,
+        risks: risksResult,
+      });
+    } catch {
+      // Generation failure is non-critical
+    }
 
     return {
       type: 'analyze',
       status: 'completed',
       risks: risksResult?.risks,
-      report: generationResult?.report,
+      report: generation?.report,
     };
   } catch (error) {
     return {

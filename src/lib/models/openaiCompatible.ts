@@ -13,16 +13,14 @@ export class OpenAICompatibleAdapter implements ModelAdapter {
     this.modelId = config.modelId;
   }
 
-  async call(messages: ModelMessage[], options?: { maxTokens?: number; timeout?: number }): Promise<ModelResponse> {
+  async call(messages: ModelMessage[]): Promise<ModelResponse> {
     const response = await this.client.chat.completions.create({
       model: this.modelId,
       messages: messages.map(m => ({
         role: m.role,
         content: m.content,
       })),
-      max_tokens: options?.maxTokens ?? 2048,
-    }, {
-      timeout: options?.timeout ?? 30000,
+      max_tokens: 4096,
     });
 
     return {
