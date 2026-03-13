@@ -36,6 +36,7 @@ const DEPENDENCY_FILE_NAMES = [
 const headers: Record<string, string> = {
   'Accept': 'application/vnd.github.v3+json',
   'User-Agent': 'LicenseAnalyzer/1.0',
+  ...(process.env.GITHUB_TOKEN ? { 'Authorization': `Bearer ${process.env.GITHUB_TOKEN}` } : {}),
 };
 
 /**

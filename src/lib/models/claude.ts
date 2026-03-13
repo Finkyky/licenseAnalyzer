@@ -10,18 +10,20 @@ export class ClaudeAdapter implements ModelAdapter {
     this.modelId = config.modelId;
   }
 
-  async call(messages: ModelMessage[]): Promise<ModelResponse> {
+  async call(messages: ModelMessage[], options?: { maxTokens?: number; timeout?: number }): Promise<ModelResponse> {
     const systemMessage = messages.find(m => m.role === 'system');
     const nonSystemMessages = messages.filter(m => m.role !== 'system');
 
     const response = await this.client.messages.create({
       model: this.modelId,
-      max_tokens: 4096,
+      max_tokens: options?.maxTokens ?? 2048,
       system: systemMessage?.content || '',
       messages: nonSystemMessages.map(m => ({
         role: m.role as 'user' | 'assistant',
         content: m.content,
       })),
+    }, {
+      timeout: options?.timeout ?? 30000,
     });
 
     const textBlock = response.content.find(b => b.type === 'text');

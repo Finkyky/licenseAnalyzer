@@ -45,6 +45,23 @@ export async function fetchLicenseText(spdxId: string): Promise<string> {
   return data.text;
 }
 
+export async function generateReport(params: {
+  selectedLicense: string;
+  projectDescription?: string;
+  model: Record<string, string>;
+}): Promise<string> {
+  const res = await fetch('/api/generate-report', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(params),
+  });
+  if (!res.ok) {
+    throw new Error('生成报告失败');
+  }
+  const data = await res.json();
+  return data.report;
+}
+
 export async function searchLicenses(query?: string): Promise<LicenseSearchResponse> {
   const params = query ? `?name=${encodeURIComponent(query)}` : '';
   const res = await fetch(`/api/licenses${params}`);
