@@ -169,7 +169,7 @@ npm run dev
 
 ![首页](/imgs/协议选择.png)
 
-![首页](/imgs/分析选择.png)
+![首页](/imgs/分析页面.png)
 
 ![首页](/imgs/license下载.png)
 
