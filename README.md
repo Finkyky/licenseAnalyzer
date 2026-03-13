@@ -6,6 +6,8 @@
 
 智能协议推荐 · 依赖合规检查 · 协议对比解读
 
+体验地址: https://licenseanalyzer.onrender.com
+
 [中文](#中文文档) | [English](#english-documentation)
 
 </div>
@@ -161,6 +163,21 @@ npm run dev
 | AI/LLM | @anthropic-ai/sdk + openai SDK |
 | 依赖解析 | package.json / requirements.txt / go.mod / Cargo.toml |
 | Markdown | react-markdown |
+
+### 演示
+![首页](/imgs/首页.png)
+
+![首页](/imgs/协议选择.png)
+
+![首页](/imgs/分析选择.png)
+
+![首页](/imgs/license下载.png)
+
+![首页](/imgs/推荐页面.png)
+
+![首页](/imgs/检查页面.png)
+
+![首页](/imgs/合规检查.png)
 
 ---
 
